@@ -1,9 +1,19 @@
 "use client";
 
-import { useEffect, useRef } from "react";
-import { Map as MlMap, Marker, NavigationControl } from "maplibre-gl";
+import { useEffect, useRef, useState } from "react";
+import {
+  Map as MlMap,
+  Marker,
+  NavigationControl,
+  setWorkerUrl,
+} from "maplibre-gl";
+import "maplibre-gl/dist/maplibre-gl.css";
 import type { Pandal } from "@/data/pandals";
 import { MUMBAI_BOUNDS, MUMBAI_CENTER } from "@/lib/geo";
+
+if (typeof window !== "undefined") {
+  setWorkerUrl("/maplibre-gl-worker.mjs");
+}
 
 type Props = {
   pandals: Pandal[];
@@ -98,35 +108,52 @@ export default function MapCanvas({ pandals, selectedId, nearestId, onSelect }: 
   const mapRef = useRef<MlMap | null>(null);
   const markersRef = useRef<Marker[]>([]);
   const onSelectRef = useRef(onSelect);
+  const [error, setError] = useState<string | null>(null);
   onSelectRef.current = onSelect;
 
   useEffect(() => {
     if (!wrapRef.current || mapRef.current) return;
 
-    const map = new MlMap({
-      container: wrapRef.current,
-      style: "https://tiles.openfreemap.org/styles/liberty",
-      center: MUMBAI_CENTER,
-      zoom: 13.5,
-      pitch: 60,
-      bearing: -20,
-      maxBounds: MUMBAI_BOUNDS,
-      attributionControl: { compact: true },
-      canvasContextAttributes: { antialias: true },
-    });
+    let map: MlMap;
+    try {
+      map = new MlMap({
+        container: wrapRef.current,
+        style: "https://tiles.openfreemap.org/styles/liberty",
+        center: MUMBAI_CENTER,
+        zoom: 13.5,
+        pitch: 60,
+        bearing: -20,
+        maxBounds: MUMBAI_BOUNDS,
+        attributionControl: { compact: true },
+        canvasContextAttributes: { antialias: true },
+      });
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Map failed to start");
+      return;
+    }
 
     map.addControl(new NavigationControl({ visualizePitch: true }), "bottom-right");
     mapRef.current = map;
 
+    map.on("error", (ev) => {
+      const msg = ev?.error?.message || "Map failed to load tiles";
+      setError(msg);
+    });
+
     map.on("load", () => {
+      setError(null);
       ensure3dBuildings(map);
       map.resize();
     });
 
+    const t1 = window.setTimeout(() => map.resize(), 150);
+    const t2 = window.setTimeout(() => map.resize(), 800);
     const onResize = () => map.resize();
     window.addEventListener("resize", onResize);
 
     return () => {
+      window.clearTimeout(t1);
+      window.clearTimeout(t2);
       window.removeEventListener("resize", onResize);
       markersRef.current.forEach((m) => m.remove());
       markersRef.current = [];
@@ -175,5 +202,14 @@ export default function MapCanvas({ pandals, selectedId, nearestId, onSelect }: 
     });
   }, [selectedId, pandals]);
 
-  return <div ref={wrapRef} className="absolute inset-0 h-full w-full" />;
+  return (
+    <>
+      <div ref={wrapRef} className="absolute inset-0 h-full w-full" />
+      {error && (
+        <div className="absolute inset-x-4 bottom-16 z-10 rounded-2xl border border-gold/30 bg-night/90 p-3 text-center text-sm text-gold">
+          Map could not load. {error}
+        </div>
+      )}
+    </>
+  );
 }
