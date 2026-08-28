@@ -120,10 +120,11 @@ export default function MapCanvas({ pandals, selectedId, nearestId, onSelect }: 
         container: wrapRef.current,
         style: "https://tiles.openfreemap.org/styles/liberty",
         center: MUMBAI_CENTER,
-        zoom: 13.5,
-        pitch: 60,
+        zoom: 12,
+        pitch: 0,
         bearing: -20,
-        maxBounds: MUMBAI_BOUNDS,
+        minZoom: 9,
+        maxZoom: 16,
         attributionControl: { compact: true },
         canvasContextAttributes: { antialias: true },
       });
@@ -142,8 +143,11 @@ export default function MapCanvas({ pandals, selectedId, nearestId, onSelect }: 
 
     map.on("load", () => {
       setError(null);
-      ensure3dBuildings(map);
       map.resize();
+      ensure3dBuildings(map);
+      map.setMaxBounds(MUMBAI_BOUNDS);
+      map.easeTo({ pitch: 55, zoom: 13.2, duration: 1400, essential: true });
+      map.triggerRepaint();
     });
 
     const t1 = window.setTimeout(() => map.resize(), 150);

@@ -3,8 +3,8 @@ import type { Pandal } from "@/data/pandals";
 export const MUMBAI_CENTER: [number, number] = [72.836, 18.995];
 
 export const MUMBAI_BOUNDS: [[number, number], [number, number]] = [
-  [72.74, 18.86],
-  [73.06, 19.28],
+  [72.55, 18.70],
+  [73.25, 19.45],
 ];
 
 export function haversineKm(
